@@ -7,8 +7,8 @@ use std::time::Instant;
 
 use image::{ImageBuffer, RgbImage};
 
-const WIDTH: usize = 350;
-const HEIGHT: usize = 350;
+const WIDTH: usize = 1920;
+const HEIGHT: usize = 1080;
 
 fn get_color_from_iterations(i: i32, max_iterations: i32) -> (i32, i32, i32) {
     if i == max_iterations {
@@ -86,7 +86,7 @@ fn main_single() {
             image.put_pixel(x as u32, y as u32, pixel);
         }
         let stopped_row = Instant::now();
-        println!("duration for a row {:?}", stopped_row.duration_since(start_row));
+        //  println!("duration for a row {:?}", stopped_row.duration_since(start_row));
     }
 
     let stopped = Instant::now();
@@ -111,7 +111,7 @@ fn main_threads() {
 
     let mut children = vec![];
 
-    let mut act_y: usize = 0;
+    let act_y: usize = 0;
     let act_y_mutex = Arc::new(Mutex::new(act_y));
 
     for i in 0..num_threads {
@@ -119,7 +119,7 @@ fn main_threads() {
         let cloned_act_y = act_y_mutex.clone();
 
         children.push(thread::spawn(move || {
-            let max_iterations = 10000;
+            let max_iterations = 25000;
             let max_radius = 4.0;
 
             let mut z_real;
@@ -140,21 +140,16 @@ fn main_threads() {
 
             let mut y = 0;
 
-            while act_y < HEIGHT {
+            while *cloned_act_y.lock().unwrap() < HEIGHT {
                 if y < HEIGHT {
-                    //    let mut ay = cloned_act_y.lock().unwrap();
-                    //    y = *ay;
-                    // let y2 = y + 1;
-                    // cloned_act_y.get_mut().unwrap() =&mut  y2;
-
                     let mut acty = cloned_act_y.lock().unwrap();
                     y = *acty;
-                    println!("acty before: {:?}", *acty);
+                    //  println!("acty before: {:?}", *acty);
                     *acty = *acty + 1;
 
-                    println!("acty after: {:?}", *acty);
+                    // println!("acty after: {:?}", *acty);
                 }
-                // println!("thread {}, y = {}, act_Y = {}", i, y, act_y);
+                // println!("thread {}, y = {}, act_y = {}   ", i, y, act_y );
 
                 let start = Instant::now();
 
@@ -179,27 +174,29 @@ fn main_threads() {
                     let (red, green, blue) = get_color_from_iterations(i, max_iterations);
                     let pixel = image::Rgb([red as u8, green as u8, blue as u8]);
 
-                    //let mut img = cloned_data.lock().unwrap();
-                    //img.put_pixel(x as u32, y as u32, pixel);
+                    let mut img = cloned_data.lock().unwrap();
+                    img.put_pixel(x as u32, y as u32, pixel);
                 }
                 let stopped = Instant::now();
                 println!("thread \t{}\t, y = \t{}\t, act_Y =\t {}\t,  duration =\t{:?}\t   ", i, y, act_y, stopped.duration_since(start).as_micros());
-
-                // println!("thread {},   duration for a row {:?}", i, stopped.duration_since(start));
+                println!("thread {},   duration for a row {:?}", i, stopped.duration_since(start));
             }
         }));
     }
     println!("waiting for threads to finish.");
 
     for child in children {
-        // Wait for the thread to finish. Returns a result.
+        // Wait for the thread to finish.
         let _ = child.join();
     }
 
     let stopped = Instant::now();
     println!("end: {:?}", stopped);
     println!("{:?}", stopped.duration_since(start));
+    println!("act_y_mutex = {:?}", act_y_mutex.lock().unwrap());
 
+    let img = data.lock().unwrap();
+    img.save("fractal_multi123.png").unwrap();
     // image.save("fractal.png").unwrap();
 }
 
